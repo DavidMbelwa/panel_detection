@@ -39,8 +39,8 @@ def home():
 @app.route('/classify', methods=['POST'])
 def classify():
     location = request.form.get('location')
-    size = request.form.get('size', '400x400')  # Default size is 400x400
-    zoom = request.form.get('zoom', 18)  # Default zoom level is 18
+    size = request.form.get('size', '900x900')  # Default size is 400x400
+    zoom = request.form.get('zoom', 19)  # Default zoom level is 18
 
     if not location:
         return jsonify({'error': 'No location provided'}), 400

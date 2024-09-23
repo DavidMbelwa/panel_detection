@@ -22,26 +22,13 @@
                 <input type="text" id="location" name="location" required>
                 <label for="location">Enter a Location (e.g., an address or place)</label>
             </div>
-
-            <div class="input-field">
-                <input type="text" id="size" name="size" value="400x400" required>
-                <label for="size">Enter Image Size (e.g., 400x400)</label>
-            </div>
-
-            <div class="input-field">
-                <input type="number" id="zoom" name="zoom" min="1" max="21" value="18" required>
-                <label for="zoom">Enter Zoom Level (1 to 21)</label>
-            </div>
-
             <button type="submit" class="btn waves-effect waves-light">Submit</button>
         </form>
-
         <div class="result" style="display:none;">
             <h5>Classification Result:</h5>
             <p id="classification"></p>
             <img id="satellite-image" src="" alt="Satellite image of location">
         </div>
-        
         <div id="error-message" class="red-text" style="display:none;"></div>
     </div>
 
@@ -50,9 +37,6 @@
             e.preventDefault();
 
             const location = document.getElementById('location').value;
-            const size = document.getElementById('size').value;
-            const zoom = document.getElementById('zoom').value;
-
             const resultDiv = document.querySelector('.result');
             const classificationText = document.getElementById('classification');
             const satelliteImage = document.getElementById('satellite-image');
@@ -68,9 +52,7 @@
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: new URLSearchParams({
-                    'location': location,
-                    'size': size,
-                    'zoom': zoom
+                    'location': location
                 })
             })
             .then(response => response.json())
