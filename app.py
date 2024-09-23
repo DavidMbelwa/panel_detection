@@ -1,18 +1,181 @@
+# from flask import Flask, request, jsonify, render_template
+# import numpy as np
+# import tensorflow as tf
+# import os
+# import pickle
+# from PIL import Image
+# import requests
+# from io import BytesIO
+
+
+
+# # Google Maps API key
+# API_KEY = "AIzaSyC22VUhVRz1iaJ1F1nCH_5uDE5Kdlt4io0"
+
+
+# app = Flask(__name__)
+
+
+# # Set up paths
+# base_dir = './' # Modify this if needed
+# keras_file_path = "solar_panel_detection_model.keras"
+# pickle_file_path = "solar_panel_detection_model.pkl"
+
+
+# # Load the Keras model
+# model = tf.keras.models.load_model(keras_file_path)
+# print("Keras model loaded successfully!")
+
+
+# # The fuction to get the coordinates of the location
+# def get_coordinates(location_name):
+#     """Get the latitude and longitude of a location using Google Geocoding API."""
+#     geocode_url = f"https://maps.googleapis.com/maps/api/geocode/json?address={location_name}&key={API_KEY}"
+#     response = requests.get(geocode_url)
+#     data = response.json()
+
+#     if data['status'] == 'OK':
+#         # Extract latitude and longitude from the response
+#         location = data['results'][0]['geometry']['location']
+#         lat, lng = location['lat'], location['lng']
+#         return lat, lng
+#     else:
+#         raise Exception("Error: Unable to fetch coordinates.")
+
+
+# # The function to fetch the satelite imagery
+# def get_satellite_image(lat, lng, zoom=19, size="400x400"):
+#     """Get a satellite image of a location using Google Maps Static API."""
+#     map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom={zoom}&size={size}&maptype=satellite&key={API_KEY}"
+#     response = requests.get(map_url)
+
+#     if response.status_code == 200:
+#         # Convert the response content to an image
+#         image = Image.open(BytesIO(response.content))
+#         return image
+#     else:
+#         raise Exception("Error: Unable to fetch satellite image.")
+
+
+# # The function to process the image
+# def load_and_preprocess_image(img):
+#     img = img.resize((101, 101))  # Resize the image
+#     img_array = np.array(img).astype(np.float32) / 255.0  # Normalize the image array
+
+#     # Create the grayscale image by taking the mean along the color channels
+#     grayscale = np.mean(img_array, axis=-1, keepdims=True)  # This produces a 2D array (height, width)
+
+#     # Ensure the grayscale image is strictly 2D (height, width)
+#     if grayscale.ndim != 2:
+#         grayscale = grayscale.squeeze()  # Remove any extra dimensions if present
+
+#     # Check if the grayscale image is large enough to compute gradients
+#     if grayscale.shape[0] > 2 and grayscale.shape[1] > 2:
+#         # Compute the gradients for the 2D grayscale image
+#         dx, dy = np.gradient(grayscale[:, :, 0])  # Calculate gradient if dimensions allow
+#         edge_magnitude = np.sqrt(dx**2 + dy**2)  # Compute edge magnitude
+#     else:
+#         # If the image is too small for gradient computation, set edge_magnitude to zeros
+#         edge_magnitude = np.zeros_like(grayscale)
+
+#     # Compute texture feature
+#     texture = np.abs(grayscale - np.mean(grayscale))  # Compute texture
+
+#     # Combine all features into one array (add channels back)
+#     features = np.concatenate(
+#         [
+#             img_array,  # Original image array (3D)
+#             grayscale[..., np.newaxis],  # Add grayscale back with a new axis
+#             edge_magnitude[..., np.newaxis],  # Add edge magnitude with a new axis
+#             texture[..., np.newaxis]  # Add texture with a new axis
+#         ],
+#         axis=-1  # Concatenate along the last axis (channels)
+#     )
+
+#     # Add batch dimension (required for model prediction)
+#     return np.expand_dims(features, axis=0)
+
+
+
+# # The function to classify the image
+# def classify_image(image):
+    
+#      # Preprocess the image
+#     processed_image = load_and_preprocess_image(image)
+
+#     # Make prediction
+#     prediction = model.predict(processed_image)[0][0]
+#     predicted_class = 1 if prediction > 0.5 else 0
+
+#     return "There are solar panels" if predicted_class == 1 else "There are no solar panels in your area."
+
+
+# # Define the route for prediction
+# @app.route('/', methods=['GET','POST'])
+
+# def index():
+#     if request.method == "POST":
+#         # User location
+#         location_name = request.form.get("location")
+
+#         # Fetching coordinates for the location
+#         coordinates = get_coordinates(location_name)
+
+#         if not coordinates:
+#             return "Error: Could not find the location."
+        
+#         lat, lng = coordinates
+
+#         # Fetching the satellite image
+#         image = get_satellite_image(lat, lng)
+
+#         if not image:
+#             return "Error: Could not fetch satellite image"
+        
+#         #classification_result = classify_image(image)
+
+#         # Save the image to send it to the user interface
+#         img_io = BytesIO()
+#         image.save(img_io, "PNG")
+#         img_io.seek(0)
+
+#         # Send the image and classification result to be rendered in the HTML
+#         return render_template("index.html", image_url=request.url, classification="There are solar panels")
+
+#     # For GET request, simply render the form
+#     return render_template("index.html")
+
+# if __name__ == "__main__":
+#     app.run(debug=True)
+
+
 from flask import Flask, request, render_template, send_file
 import requests
 from PIL import Image
 from io import BytesIO
-import ee  # Import the Earth Engine API
+import numpy as np
+import tensorflow as tf
 import os
+import pickle
 
-# Initialize the Earth Engine API
-ee.Initialize()
+# Google Maps API key
+API_KEY = "AIzaSyC22VUhVRz1iaJ1F1nCH_5uDE5Kdlt4io0"
 
-# Flask app initialization
 app = Flask(__name__)
 
-# Google Maps API key (optional if using Google Maps for fallback)
-API_KEY = "AIzaSyC22VUhVRz1iaJ1F1nCH_5uDE5Kdlt4io0"
+
+
+# Set up paths
+base_dir = './' # Modify this if needed
+keras_file_path = "solar_panel_detection_model.keras"
+pickle_file_path = "solar_panel_detection_model.pkl"
+
+
+# Load the Keras model
+model = tf.keras.models.load_model(keras_file_path)
+print("Keras model loaded successfully!")
+
+
 
 # The function to get the coordinates of the location
 def get_coordinates(location_name):
@@ -22,66 +185,118 @@ def get_coordinates(location_name):
     data = response.json()
 
     if data['status'] == 'OK':
+        # Extract latitude and longitude from the response
         location = data['results'][0]['geometry']['location']
         lat, lng = location['lat'], location['lng']
         return lat, lng
     else:
         raise Exception("Error: Unable to fetch coordinates.")
 
-# The function to get a satellite image from Google Earth Engine
-def get_google_earth_image(lat, lng):
-    """Fetch high-quality satellite imagery using Google Earth Engine."""
-    
-    # Define the location point using latitude and longitude
-    point = ee.Geometry.Point([lng, lat])
+# The function to fetch the satellite imagery
+def get_satellite_image(lat, lng, zoom=19, size="900x900"):
+    """Get a satellite image of a location using Google Maps Static API."""
+    map_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom={zoom}&size={size}&maptype=satellite&key={API_KEY}"
+    response = requests.get(map_url)
 
-    # Get Sentinel-2 satellite image for the point
-    image = ee.ImageCollection('COPERNICUS/S2') \
-        .filterBounds(point) \
-        .sort('CLOUDY_PIXEL_PERCENTAGE') \
-        .first()
-
-    # Define visualization parameters for true-color imagery (RGB bands)
-    vis_params = {
-        'min': 0,
-        'max': 3000,
-        'bands': ['B4', 'B3', 'B2'],  # Red, Green, Blue bands for true color
-    }
-
-    # Get the image as a URL (high-quality image download)
-    url = image.getThumbURL(vis_params)
-    
-    # Fetch the image from the URL
-    response = requests.get(url)
     if response.status_code == 200:
         # Convert the response content to an image
-        img_io = BytesIO(response.content)
+        image = Image.open(BytesIO(response.content))
+        img_io = BytesIO()
+        image.save(img_io, 'PNG')
+        img_io.seek(0)
         return img_io
     else:
-        raise Exception("Error: Unable to fetch satellite image from Google Earth Engine.")
+        raise Exception("Error: Unable to fetch satellite image.")
 
-# Route to fetch and display satellite images
-@app.route('/', methods=['GET', 'POST'])
+
+# The function to process the image
+def load_and_preprocess_image(img):
+    img = img.resize((101, 101))  # Resize the image
+    img_array = np.array(img).astype(np.float32) / 255.0  # Normalize the image array
+
+    # Create the grayscale image by taking the mean along the color channels
+    grayscale = np.mean(img_array, axis=-1, keepdims=True)  # This produces a 2D array (height, width)
+
+    # Ensure the grayscale image is strictly 2D (height, width)
+    if grayscale.ndim != 2:
+        grayscale = grayscale.squeeze()  # Remove any extra dimensions if present
+
+    # Check if the grayscale image is large enough to compute gradients
+    if grayscale.shape[0] > 2 and grayscale.shape[1] > 2:
+        # Compute the gradients for the 2D grayscale image
+        dx, dy = np.gradient(grayscale[:, :, 0])  # Calculate gradient if dimensions allow
+        edge_magnitude = np.sqrt(dx**2 + dy**2)  # Compute edge magnitude
+    else:
+        # If the image is too small for gradient computation, set edge_magnitude to zeros
+        edge_magnitude = np.zeros_like(grayscale)
+
+    # Compute texture feature
+    texture = np.abs(grayscale - np.mean(grayscale))  # Compute texture
+
+    # Combine all features into one array (add channels back)
+    features = np.concatenate(
+        [
+            img_array,  # Original image array (3D)
+            grayscale[..., np.newaxis],  # Add grayscale back with a new axis
+            edge_magnitude[..., np.newaxis],  # Add edge magnitude with a new axis
+            texture[..., np.newaxis]  # Add texture with a new axis
+        ],
+        axis=-1  # Concatenate along the last axis (channels)
+    )
+
+    # Add batch dimension (required for model prediction)
+    return np.expand_dims(features, axis=0)
+
+
+# The function to classify the image
+def classify_image(image):
+    
+     # Preprocess the image
+    processed_image = load_and_preprocess_image(image)
+
+    # Make prediction
+    prediction = model.predict(processed_image)[0][0]
+    predicted_class = 1 if prediction > 0.5 else 0
+
+    return "There are solar panels" if predicted_class == 1 else "There are no solar panels in your area."
+
+
+# Define the route for prediction
+@app.route('/', methods=['GET','POST'])
+
 def index():
     if request.method == "POST":
         # User location
         location_name = request.form.get("location")
 
         # Fetching coordinates for the location
-        try:
-            lat, lng = get_coordinates(location_name)
-        except Exception as e:
-            return f"Error: {str(e)}"
-        
-        # Fetching satellite image from Google Earth Engine
-        try:
-            image_io = get_google_earth_image(lat, lng)
-            return send_file(image_io, mimetype='image/png')
-        except Exception as e:
-            return f"Error fetching satellite image: {str(e)}"
+        coordinates = get_coordinates(location_name)
 
-    # Render form on GET request
+        if not coordinates:
+            return "Error: Could not find the location."
+        
+        lat, lng = coordinates
+
+        # Fetching the satellite image
+        image = get_satellite_image(lat, lng)
+
+        if not image:
+            return "Error: Could not fetch satellite image"
+        
+        classification_result = classify_image(image)
+
+        # Save the image to send it to the user interface
+        img_io = BytesIO()
+        image.save(img_io, "PNG")
+        img_io.seek(0)
+
+        # Send the image and classification result to be rendered in the HTML
+        #return render_template("index.html", image_url=request.url, classification="There are solar panels")
+        return send_file(image, mimetype='image/png')
+
+    # For GET request, simply render the form
     return render_template("index.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
+
