@@ -3,113 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solar Panel Detection</title>
+    <title>Solar Panel Detector</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <style>
-        /* Reset some default styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        .container {
+            margin-top: 50px;
         }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            padding: 20px;
-        }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 2.5em;
-            color: #333;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-        }
-
-        label {
-            font-size: 1.1em;
-            color: #555;
-        }
-
-        input[type="text"] {
-            padding: 10px;
-            font-size: 1em;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            width: 100%;
-        }
-
-        button {
-            padding: 10px;
-            font-size: 1.1em;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #218838;
-        }
-
-        .result {
-            margin-top: 20px;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
-        .result p {
-            font-size: 1.2em;
-            color: #333;
-        }
-
-        img {
-            margin-top: 15px;
+        .result img {
             max-width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h3>Solar Panel Detection</h3>
+        <form id="location-form">
+            <div class="input-field">
+                <input type="text" id="location" name="location" required>
+                <label for="location">Enter a Location (e.g., an address or place)</label>
+            </div>
 
-    <div>
-        <h1>Solar Panel Detection</h1>
-        <form action="/" method="POST" enctype="multipart/form-data">
-            <label for="location">Enter your location:</label>
-            <input type="text" name="location" required>
-            <button type="submit">Submit</button>
+            <div class="input-field">
+                <input type="text" id="size" name="size" value="400x400" required>
+                <label for="size">Enter Image Size (e.g., 400x400)</label>
+            </div>
+
+            <div class="input-field">
+                <input type="number" id="zoom" name="zoom" min="1" max="21" value="18" required>
+                <label for="zoom">Enter Zoom Level (1 to 21)</label>
+            </div>
+
+            <button type="submit" class="btn waves-effect waves-light">Submit</button>
         </form>
 
-        {% if request.method == 'POST' %}
-        <div class="result">
-            <p>{{ classification }}</p>
-
-            <h2>The satellite image of your location:</h2>
-            <img src="{{ url_for('index') }}" alt="Satellite Image">
+        <div class="result" style="display:none;">
+            <h5>Classification Result:</h5>
+            <p id="classification"></p>
+            <img id="satellite-image" src="" alt="Satellite image of location">
         </div>
-        {% endif %}
+        
+        <div id="error-message" class="red-text" style="display:none;"></div>
     </div>
 
+    <script>
+        document.getElementById('location-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const location = document.getElementById('location').value;
+            const size = document.getElementById('size').value;
+            const zoom = document.getElementById('zoom').value;
+
+            const resultDiv = document.querySelector('.result');
+            const classificationText = document.getElementById('classification');
+            const satelliteImage = document.getElementById('satellite-image');
+            const errorMessage = document.getElementById('error-message');
+
+            resultDiv.style.display = 'none';
+            errorMessage.style.display = 'none';
+
+            // Send request to the backend
+            fetch('/classify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'location': location,
+                    'size': size,
+                    'zoom': zoom
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                classificationText.textContent = data.prediction;
+                satelliteImage.src = data.image_url;
+                resultDiv.style.display = 'block';
+            })
+            .catch(error => {
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+            });
+        });
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 </body>
 </html>
