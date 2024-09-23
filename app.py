@@ -16,15 +16,6 @@ API_KEY = "AIzaSyC22VUhVRz1iaJ1F1nCH_5uDE5Kdlt4io0"
 app = Flask(__name__)
 
 
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-if __name__ == '__main__':
-    app.run()
-# app = Flask(__name__)
-
-
 # Set up paths
 base_dir = './' # Modify this if needed
 keras_file_path = "solar_panel_detection_model.keras"
@@ -66,20 +57,34 @@ def get_satellite_image(lat, lng, zoom=15, size="400x400"):
         raise Exception("Error: Unable to fetch satellite image.")
 
 
-# The function to preprocess the image
-def load_and_preprocess_image(file):
-    img = Image.open(file).convert('RGB').resize((101, 101))
-    img_array = np.array(img).astype(np.float32) / 255.0
+# The function to process the image
+def load_and_preprocess_image(img):
+    img = img.resize((101, 101))  # Resize the image
+    img_array = np.array(img).astype(np.float32) / 255.0  # Normalize the image array
 
-    # Create additional features
-    grayscale = np.mean(img_array, axis=-1, keepdims=True)
-    dx, dy = np.gradient(grayscale[:,:,0])
-    edge_magnitude = np.sqrt(dx**2 + dy**2)
-    texture = np.abs(grayscale - np.mean(grayscale))
+    # Create the grayscale image by taking the mean along the color channel axis
+    grayscale = np.mean(img_array, axis=-1)  # Result is a 2D array (height, width)
 
-    # Combine all features
-    features = np.concatenate([img_array, grayscale, edge_magnitude[..., np.newaxis], texture], axis=-1)
-    return np.expand_dims(features, axis=0)  # Add batch dimension
+    # Compute the gradients for the 2D grayscale image
+    dx, dy = np.gradient(grayscale)  # This will work since grayscale is now 2D
+
+    # Additional features
+    edge_magnitude = np.sqrt(dx**2 + dy**2)  # Compute edge magnitude
+    texture = np.abs(grayscale - np.mean(grayscale))  # Compute texture
+
+    # Combine all features into one array
+    features = np.concatenate(
+        [
+            img_array,  # Original image array (3D)
+            grayscale[..., np.newaxis],  # Add grayscale back with a new axis
+            edge_magnitude[..., np.newaxis],  # Add edge magnitude with a new axis
+            texture[..., np.newaxis]  # Add texture with a new axis
+        ],
+        axis=-1  # Concatenate along the last axis (channels)
+    )
+
+    # Add batch dimension (required for model prediction)
+    return np.expand_dims(features, axis=0)
 
 
 # The function to classify the image
@@ -96,7 +101,7 @@ def classify_image(image):
 
 
 # Define the route for prediction
-@app.route('/', methods=['POST'])
+@app.route('/', methods=['GET','POST'])
 
 def index():
     if request.method == "POST":
