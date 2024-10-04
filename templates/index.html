@@ -12,23 +12,55 @@
         .result img {
             max-width: 100%;
         }
+        .flex-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .feedback-buttons button {
+            width: 45%;
+        }
+        #feedback-correct {
+            background-color: #4CAF50; /* Green */
+        }
+        #feedback-incorrect {
+            background-color: #F44336; /* Red */
+        }
+        #feedback-correct:hover, #feedback-incorrect:hover {
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h3>Solar Panel Detection</h3>
         <form id="location-form">
+            <!-- Location input -->
             <div class="input-field">
                 <input type="text" id="location" name="location" required>
                 <label for="location">Enter a Location (e.g., an address or place)</label>
             </div>
+
             <button type="submit" class="btn waves-effect waves-light">Submit</button>
         </form>
+
         <div class="result" style="display:none;">
             <h5>Classification Result:</h5>
-            <p id="classification"></p>
+            <div class="flex-container">
+                <!-- Classification text on the left -->
+                <p id="classification" style="flex: 1;"></p>
+
+                <!-- Feedback buttons in a flex box -->
+                <div class="feedback-buttons" style="flex: 1; display: flex; justify-content: space-between;">
+                    <button id="feedback-correct" class="btn waves-effect">Correct</button>
+                    <button id="feedback-incorrect" class="btn waves-effect">Incorrect</button>
+                </div>
+            </div>
+
             <img id="satellite-image" src="" alt="Satellite image of location">
         </div>
+
         <div id="error-message" class="red-text" style="display:none;"></div>
     </div>
 
@@ -37,6 +69,7 @@
             e.preventDefault();
 
             const location = document.getElementById('location').value;
+
             const resultDiv = document.querySelector('.result');
             const classificationText = document.getElementById('classification');
             const satelliteImage = document.getElementById('satellite-image');
@@ -70,6 +103,39 @@
                 errorMessage.style.display = 'block';
             });
         });
+
+        // Event listener for "Correct" feedback
+        document.getElementById('feedback-correct').addEventListener('click', function () {
+            sendFeedback(true);  // Send correct feedback
+        });
+
+        // Event listener for "Incorrect" feedback
+        document.getElementById('feedback-incorrect').addEventListener('click', function () {
+            sendFeedback(false);  // Send incorrect feedback
+        });
+
+        // Function to send feedback to the backend
+        function sendFeedback(isCorrect) {
+            const location = document.getElementById('location').value;
+
+            fetch('/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'location': location,
+                    'is_correct': isCorrect
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);  // Display feedback submission result
+            })
+            .catch(error => {
+                alert('Error submitting feedback: ' + error.message);
+            });
+        }
     </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>

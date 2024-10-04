@@ -68,5 +68,20 @@ def classify():
         return jsonify({'error': str(e)}), 500
 
 
+
+# API endpoint to handle feedback from the user
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    location = request.form.get('location')
+    is_correct = request.form.get('is_correct') == 'true'  # Convert string to boolean
+
+    # Log the feedback (for now, just print it; you could save it to a database or file)
+    feedback_message = f"Feedback received for location '{location}': {'Correct' if is_correct else 'Incorrect'}"
+    print(feedback_message)
+
+    # Return a success message
+    return jsonify({'message': 'Feedback submitted successfully'})
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
